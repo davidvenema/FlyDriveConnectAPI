@@ -18,7 +18,9 @@ app.include_router(members.router)
 app.include_router(bookings.router)
 app.include_router(subscriptions.router)
 app.include_router(search_logs.router)
+app.include_router(availability.router)
 
 @app.get("/")
 def root():
     return {"ok": True, "service": "FlyDrive API"}
+
