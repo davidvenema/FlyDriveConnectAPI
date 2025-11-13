@@ -162,3 +162,23 @@ class SearchLogOut(SearchLogBase):
     search_logs_id: int
     class Config:
         from_attributes = True
+
+# ----------------------------
+# Availability Schemas
+# ----------------------------
+
+class AvailabilityCarOut(BaseModel):
+    cars_id: int
+    registration: str
+    make_model: Optional[str] = None
+    price_hourly: Optional[float] = None
+    keyfob_code: Optional[str] = None
+    lockbox_ble_name: Optional[str] = None
+    status: Optional[str] = None
+    class Config:
+        from_attributes = True
+
+class AvailabilityResponse(BaseModel):
+    airport: str
+    total_available: int
+    available_cars: List[AvailabilityCarOut]
