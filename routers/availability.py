@@ -4,6 +4,7 @@ from sqlalchemy import and_
 from datetime import datetime
 from database import get_db
 from models import Car, Booking, Airport
+from schemas import AvailabilityCarOut, AvailabilityResponse
 
 router = APIRouter(prefix="/availability", tags=["availability"])
 
@@ -68,3 +69,4 @@ def check_availability(
             for car in available
         ]
     }
+
