@@ -11,7 +11,7 @@ DATABASE_URL = os.getenv("DATABASE_URL")
 
 # Safe fallback for App Runner import-time
 if not DATABASE_URL:
-    print("Warning: DATABASE_URL not set at import time.")
+    print("Warning from database.py: DATABASE_URL not set at import time.")
     # Use a local SQLite fallback so import doesn't crash
     DATABASE_URL = "sqlite:///./fallback.db"
 
@@ -45,3 +45,4 @@ def get_db():
         yield db
     finally:
         db.close()
+
