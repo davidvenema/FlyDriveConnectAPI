@@ -1,13 +1,11 @@
 #!/bin/bash
 
-echo "From start.sh: Attempting final PATH setting and execution."
+echo "From start.sh: Setting PYTHONPATH and executing uvicorn module."
 
-# 1. Add the site-packages directory (for modules, from previous failed attempt)
+# Explicitly add the site-packages directory to PYTHONPATH where the 'uvicorn' module resides.
+# This bypasses any system PATH issues.
 export PYTHONPATH="/usr/local/lib/python3.11/site-packages:$PYTHONPATH"
 
-# 2. Add the /usr/local/bin directory (where Python executables usually land)
-export PATH="/usr/local/bin:$PATH"
-
-# 3. Use 'python3 -m uvicorn' again, as the Python module is the primary way.
-# Now that PATH and PYTHONPATH are explicitly set, this should resolve the module.
-exec python3 -m uvicorn main:app --host 0.0.0.0 --port 8080
+# Run uvicorn using the python module directly, which should now be discoverable.
+# We remove 'exec' to ensure the shell handles the script fully before starting the process.
+python3 -m uvicorn main:app --host 0.0.0.0 --port 8080
