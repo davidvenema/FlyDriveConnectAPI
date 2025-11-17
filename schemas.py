@@ -182,3 +182,15 @@ class AvailabilityResponse(BaseModel):
     airport: str
     total_available: int
     available_cars: List[AvailabilityCarOut]
+
+# ----------------------------
+# Auth schemas (social login)
+# ----------------------------
+
+class SocialLoginRequest(BaseModel):
+    provider: str  # e.g. "google" (Apple later if you like)
+    id_token: str  # ID token returned by Google/Apple on the device
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str
