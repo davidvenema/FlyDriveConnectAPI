@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from routers import airports, rates, cars, members, bookings, subscriptions, search_logs
+from routers import airports, rates, cars, members, bookings, subscriptions, search_logs, availability
 
 app = FastAPI(title="FlyDrive API")
 
@@ -23,4 +23,5 @@ app.include_router(availability.router)
 @app.get("/")
 def root():
     return {"ok": True, "service": "FlyDrive API"}
+
 
