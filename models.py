@@ -28,7 +28,14 @@ class Car(Base):
     lockbox_serial = Column(String)
     keyfob_code = Column(String)
     created_at = Column(TIMESTAMP)
-
+    # NEW IMAGE FIELDS
+    image_url = Column(Text)
+    carleft_url = Column(Text)
+    carright_url = Column(Text)
+    carback_url = Column(Text)
+    carfront_url = Column(Text)
+    cardash_url = Column(Text)
+    
     airport = relationship("Airport", back_populates="cars")
     bookings = relationship("Booking", back_populates="car")
 
@@ -104,3 +111,4 @@ class SearchLog(Base):
     desired_end = Column(TIMESTAMP)
 
     # Relationships optional here; mostly append-only log
+
