@@ -6,3 +6,5 @@ python-dotenv
 pydantic>=2.0
 python-jose[cryptography]
 requests
+boto3
+botocore
