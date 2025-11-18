@@ -8,20 +8,17 @@ from schemas import CarCreate, CarUpdate, CarOut
 
 router = APIRouter(prefix="/cars", tags=["cars"])
 
-
 # ===========================================================
 # Helper: require admin
-# Same as members.py — consistent security model
 # ===========================================================
 def require_admin(current_user = Depends(get_current_member)):
-    # Later: use user.is_admin column
+    # Later replace with user.is_admin Boolean
     if getattr(current_user, "platform", "") != "admin":
         raise HTTPException(403, "Admin access required.")
     return current_user
 
-
 # ===========================================================
-# PUBLIC: List cars (READ ONLY for the app)
+# PUBLIC: List cars
 # ===========================================================
 @router.get("/", response_model=list[CarOut])
 def list_cars(
@@ -37,7 +34,6 @@ def list_cars(
 
     return q.order_by(Car.registration).all()
 
-
 # ===========================================================
 # ADMIN: Create car
 # ===========================================================
@@ -51,7 +47,6 @@ def create_car(
     db.commit()
     db.refresh(obj)
     return obj
-
 
 # ===========================================================
 # ADMIN: Update car
@@ -72,7 +67,6 @@ def update_car(
     db.commit()
     db.refresh(obj)
     return obj
-
 
 # ===========================================================
 # ADMIN: Delete car
