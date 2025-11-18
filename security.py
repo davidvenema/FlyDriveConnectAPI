@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 from database import get_db
 from models import Member
 
-# Load .env locally
+# Load env vars
 load_dotenv()
 
 # --- JWT settings ---
@@ -22,19 +22,18 @@ if not SECRET_KEY:
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24  # 24 hours
 
-# Strict authentication (used for endpoints that require login)
+
+# Strict authentication
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 
-# OPTIONAL authentication (no 401 errors)
+# Optional authentication (no automatic 401 error)
 oauth2_scheme_optional = OAuth2PasswordBearer(
     tokenUrl="/auth/login",
-    auto_error=False,
+    auto_error=False
 )
 
-def create_access_token(
-    data: dict,
-    expires_delta: Optional[timedelta] = None,
-) -> str:
+
+def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
     to_encode = data.copy()
     now = datetime.now(timezone.utc)
 
@@ -44,8 +43,7 @@ def create_access_token(
     expire = now + expires_delta
     to_encode.update({"exp": expire, "iat": now})
 
-    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
-    return encoded_jwt
+    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
 
 def get_current_member(
@@ -61,14 +59,14 @@ def get_current_member(
 
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        email: Optional[str] = payload.get("sub")
-        if email is None:
+        email = payload.get("sub")
+        if not email:
             raise credentials_exception
     except JWTError:
         raise credentials_exception
 
     user = db.query(Member).filter(Member.email == email).first()
-    if user is None:
+    if not user:
         raise credentials_exception
 
     return user
@@ -79,8 +77,7 @@ def get_current_member_optional(
     token: Optional[str] = Depends(oauth2_scheme_optional),
 ):
     """
-    Optional authentication.
-    Returns Member or None.
+    Returns authenticated Member OR None.
     Never raises 401.
     """
 
@@ -89,11 +86,10 @@ def get_current_member_optional(
 
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        email: Optional[str] = payload.get("sub")
+        email = payload.get("sub")
         if not email:
             return None
     except JWTError:
         return None
 
-    user = db.query(Member).filter(Member.email == email).first()
-    return user
+    return db.query(Member).filter(Member.email == email).first()
