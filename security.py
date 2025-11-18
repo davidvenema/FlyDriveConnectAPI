@@ -25,6 +25,8 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24  # 24 hours
 # Used by Swagger / dependencies to read Bearer token
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 
+# Optional token reader that NEVER throws 401
+oauth2_scheme_optional = OAuth2PasswordBearer(tokenUrl="/auth/login", auto_error=False)
 
 def create_access_token(
     data: dict,
@@ -73,11 +75,13 @@ def get_current_member(
 
 def get_current_member_optional(
     db: Session = Depends(get_db),
-    token: str = Depends(oauth2_scheme),
+    token: str = Depends(oauth2_scheme_optional),
 ):
     """
-    Same as get_current_member, but returns None if no/invalid token.
-    Useful for analytics/search logging where login is optional.
+    Optional authentication.
+    Returns Member if token is valid.
+    Returns None if no token or invalid token.
+    Never raises 401.
     """
     if not token:
         return None
