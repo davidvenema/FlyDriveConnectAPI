@@ -33,6 +33,14 @@ class CarBase(BaseModel):
     lockbox_ble_name: Optional[str] = None
     lockbox_serial: Optional[str] = None
     keyfob_code: Optional[str] = None
+    # IMAGE FIELDS
+    image_url: Optional[str] = None
+    carleft_url: Optional[str] = None
+    carright_url: Optional[str] = None
+    carback_url: Optional[str] = None
+    carfront_url: Optional[str] = None
+    cardash_url: Optional[str] = None
+
 
 class CarCreate(CarBase):
     registration: str
@@ -175,8 +183,17 @@ class AvailabilityCarOut(BaseModel):
     keyfob_code: Optional[str] = None
     lockbox_ble_name: Optional[str] = None
     status: Optional[str] = None
+    # image fields
+    image_url: Optional[str] = None
+    carleft_url: Optional[str] = None
+    carright_url: Optional[str] = None
+    carback_url: Optional[str] = None
+    carfront_url: Optional[str] = None
+    cardash_url: Optional[str] = None
+
     class Config:
         from_attributes = True
+
 
 class AvailabilityResponse(BaseModel):
     airport: str
@@ -194,3 +211,4 @@ class SocialLoginRequest(BaseModel):
 class Token(BaseModel):
     access_token: str
     token_type: str
+
