@@ -85,8 +85,17 @@ def check_availability(
                 "price_hourly": float(c.price_hourly) if c.price_hourly else None,
                 "keyfob_code": c.keyfob_code,
                 "lockbox_ble_name": c.lockbox_ble_name,
-                "status": c.status
+                "status": c.status,
+        
+                # NEW IMAGES
+                "image_url": c.image_url,
+                "carleft_url": c.carleft_url,
+                "carright_url": c.carright_url,
+                "carback_url": c.carback_url,
+                "carfront_url": c.carfront_url,
+                "cardash_url": c.cardash_url,
             }
             for c in available
         ]
     }
+
