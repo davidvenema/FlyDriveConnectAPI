@@ -56,7 +56,7 @@ def get_current_member(
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
-
+    
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         email: Optional[str] = payload.get("sub")
@@ -69,4 +69,26 @@ def get_current_member(
     if user is None:
         raise credentials_exception
 
+    return user
+
+def get_current_member_optional(
+    db: Session = Depends(get_db),
+    token: str = Depends(oauth2_scheme),
+):
+    """
+    Same as get_current_member, but returns None if no/invalid token.
+    Useful for analytics/search logging where login is optional.
+    """
+    if not token:
+        return None
+
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        email: Optional[str] = payload.get("sub")
+        if email is None:
+            return None
+    except JWTError:
+        return None
+
+    user = db.query(Member).filter(Member.email == email).first()
     return user
