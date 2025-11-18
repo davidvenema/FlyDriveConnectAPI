@@ -2,21 +2,39 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import and_
 from datetime import datetime
+
 from database import get_db
-from models import Booking, Car
+from security import get_current_member     #  AUTH HERE
+from models import Booking, Member, Car
 from schemas import BookingCreate, BookingUpdate, BookingOut
 
-router = APIRouter(prefix="/bookings", tags=["bookings"])
+# Protect ALL booking routes — only authenticated users can access
+router = APIRouter(
+    prefix="/bookings",
+    tags=["bookings"],
+    dependencies=[Depends(get_current_member)],   #  JWT ENFORCED
+)
 
-# --- List all bookings (unchanged)
+# If you ever want some routes to be public, remove this ^ and put Depends on individual routes.
+
+
+# ======================================================
+# 1️ LIST BOOKINGS (optionally admin-only)
+# ======================================================
 @router.get("/", response_model=list[BookingOut])
 def list_bookings(
     db: Session = Depends(get_db),
+    current_user: Member = Depends(get_current_member),  #  You now know *who* is logged in
     member_id: int | None = None,
     car_id: int | None = None,
     from_time: datetime | None = None,
-    to_time: datetime | None = None
+    to_time: datetime | None = None,
 ):
+    # NOTE: If you want members to only see THEIR bookings, uncomment this:
+    #
+    # member_id = current_user.members_id
+    #
+
     q = db.query(Booking)
     if member_id is not None:
         q = q.filter(Booking.member_id == member_id)
@@ -26,22 +44,29 @@ def list_bookings(
         q = q.filter(Booking.start_time >= from_time)
     if to_time is not None:
         q = q.filter(Booking.end_time <= to_time)
+
     return q.order_by(Booking.start_time.desc()).all()
 
 
-# --- Create booking with overlap protection
+# ======================================================
+# 2️ CREATE BOOKING (JWT REQUIRED)
+# ======================================================
 @router.post("/", response_model=BookingOut)
-def create_booking(payload: BookingCreate, db: Session = Depends(get_db)):
-    """
-    Creates a booking if and only if no overlap exists for the same car.
-    """
+def create_booking(
+    payload: BookingCreate,
+    db: Session = Depends(get_db),
+    current_user: Member = Depends(get_current_member),   #  REQUIRE USER LOGGED IN
+):
 
-    # --- 1️⃣ Check that car exists
+    # --- Force booking to ALWAYS belong to logged-in user ---
+    payload.member_id = current_user.members_id   #  SECURITY FIX
+
+    # --- 1. Car must exist ---
     car = db.query(Car).filter(Car.cars_id == payload.car_id).first()
     if not car:
         raise HTTPException(status_code=404, detail="Car not found")
 
-    # --- 2️⃣ Check for overlapping bookings
+    # --- 2. Prevent overlapping bookings ---
     overlap = db.query(Booking).filter(
         Booking.car_id == payload.car_id,
         Booking.status.in_(["active", "confirmed", "in_progress"]),
@@ -57,7 +82,7 @@ def create_booking(payload: BookingCreate, db: Session = Depends(get_db)):
             detail="This car is already booked during the selected period."
         )
 
-    # --- 3️⃣ Create new booking
+    # --- 3. Create the booking ---
     new_booking = Booking(**payload.model_dump(exclude_unset=True))
     db.add(new_booking)
     db.commit()
@@ -66,12 +91,23 @@ def create_booking(payload: BookingCreate, db: Session = Depends(get_db)):
     return new_booking
 
 
-# --- Update booking (unchanged)
+# ======================================================
+# 3️ UPDATE BOOKING
+# ======================================================
 @router.put("/{bookings_id}", response_model=BookingOut)
-def update_booking(bookings_id: int, payload: BookingUpdate, db: Session = Depends(get_db)):
+def update_booking(
+    bookings_id: int,
+    payload: BookingUpdate,
+    db: Session = Depends(get_db),
+    current_user: Member = Depends(get_current_member),  #  REQUIRED
+):
     booking = db.query(Booking).get(bookings_id)
     if not booking:
         raise HTTPException(status_code=404, detail="Booking not found")
+
+    # --- Users can only update THEIR OWN bookings ---
+    if booking.member_id != current_user.members_id:
+        raise HTTPException(status_code=403, detail="Not your booking")
 
     for key, value in payload.model_dump(exclude_unset=True).items():
         setattr(booking, key, value)
@@ -81,12 +117,22 @@ def update_booking(bookings_id: int, payload: BookingUpdate, db: Session = Depen
     return booking
 
 
-# --- Delete booking (optional)
+# ======================================================
+# 4️ DELETE BOOKING
+# ======================================================
 @router.delete("/{bookings_id}")
-def delete_booking(bookings_id: int, db: Session = Depends(get_db)):
+def delete_booking(
+    bookings_id: int,
+    db: Session = Depends(get_db),
+    current_user: Member = Depends(get_current_member),  #  REQUIRED
+):
     booking = db.query(Booking).get(bookings_id)
     if not booking:
         raise HTTPException(status_code=404, detail="Booking not found")
+
+    # --- Ensure user owns it ---
+    if booking.member_id != current_user.members_id:
+        raise HTTPException(status_code=403, detail="Not your booking")
 
     db.delete(booking)
     db.commit()
