@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Optional, List, Any
+from typing import Dict, Optional, List, Any
 from datetime import datetime, date
 
 # Airports
@@ -208,7 +208,13 @@ class SocialLoginRequest(BaseModel):
     provider: str  # e.g. "google" (Apple later if you like)
     id_token: str  # ID token returned by Google/Apple on the device
 
+class BookingPhotoUpdate(BaseModel):
+    photo_type: str          # "before" or "after"
+    angle: str               # "left", "right", "front", etc.
+    url: str                 # public URL returned from /upload/presign
+
 class Token(BaseModel):
     access_token: str
     token_type: str
+
 
