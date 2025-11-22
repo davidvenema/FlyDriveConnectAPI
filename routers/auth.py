@@ -22,19 +22,23 @@ def verify_google_id_token(id_token: str):
 
         data = resp.json()
 
-        # must contain email
+        # DEBUG
+        print("DEBUG GOOGLE TOKENINFO:", data)
+        print("DEBUG EXPECTED AUD:", GOOGLE_WEB_CLIENT_ID)
+        print("DEBUG ACTUAL AUD:", data.get("aud"))
+
         if "email" not in data:
             return None
 
-        # enforce audience check (only if env var provided)
+        # enforce correct AUDIENCE
         if GOOGLE_WEB_CLIENT_ID and data.get("aud") != GOOGLE_WEB_CLIENT_ID:
             return None
 
         return data
 
-    except Exception:
+    except Exception as e:
+        print("verify_google_id_token ERROR:", e)
         return None
-
 
 @router.post("/google", response_model=AuthResponse)
 def login_with_google(
