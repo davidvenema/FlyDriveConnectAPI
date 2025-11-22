@@ -72,3 +72,31 @@ def admin_get_member(members_id: int, db: Session = Depends(get_db)):
     if not member:
         raise HTTPException(status_code=404, detail="Member not found")
     return member
+
+# -----------------------------------------------------
+# ADMIN: pending, approved or rejected
+# -----------------------------------------------------
+
+@router.get("/pending", response_model=list[MemberOut], dependencies=[Depends(require_admin)])
+def admin_pending_members(db: Session = Depends(get_db)):
+    return db.query(Member).filter(Member.status == "pending_verification").all()
+
+@router.post("/{members_id}/approve", dependencies=[Depends(require_admin)])
+def admin_approve_member(members_id: int, db: Session = Depends(get_db)):
+    member = db.query(Member).get(members_id)
+    if not member:
+        raise HTTPException(status_code=404, detail="Member not found")
+
+    member.status = "approved"
+    db.commit()
+    return {"message": "Member approved"}
+
+@router.post("/{members_id}/reject", dependencies=[Depends(require_admin)])
+def admin_reject_member(members_id: int, db: Session = Depends(get_db)):
+    member = db.query(Member).get(members_id)
+    if not member:
+        raise HTTPException(status_code=404, detail="Member not found")
+
+    member.status = "rejected"
+    db.commit()
+    return {"message": "Member rejected"}
