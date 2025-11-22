@@ -60,10 +60,14 @@ class MemberBase(BaseModel):
     email: Optional[str] = None
     dob: Optional[date] = None
     address: Optional[str] = None
-    license_photo_url: Optional[str] = None
     renewal_date: Optional[datetime] = None
     platform: Optional[str] = None
-
+    # NEW
+    status: Optional[str] = None
+    licence_front_url: Optional[str] = None
+    licence_back_url: Optional[str] = None
+    selfie_url: Optional[str] = None
+    
 class MemberCreate(MemberBase):
     email: str
 
@@ -216,5 +220,6 @@ class BookingPhotoUpdate(BaseModel):
 class Token(BaseModel):
     access_token: str
     token_type: str
+
 
 
