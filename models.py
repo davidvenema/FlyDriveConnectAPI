@@ -46,10 +46,13 @@ class Member(Base):
     email = Column(String, index=True)
     dob = Column(Date)
     address = Column(Text)
-    license_photo_url = Column(Text)
     renewal_date = Column(TIMESTAMP)
     platform = Column(String)
     created_at = Column(TIMESTAMP)
+    status = Column(String, default="pending_verification")     # NEW
+    licence_front_url = Column(Text, nullable=True)             # NEW
+    licence_back_url = Column(Text, nullable=True)              # NEW
+    selfie_url = Column(Text, nullable=True)                    # NEW
 
     bookings = relationship("Booking", back_populates="member")
     subscriptions = relationship("Subscription", back_populates="member")
@@ -111,4 +114,5 @@ class SearchLog(Base):
     desired_end = Column(TIMESTAMP)
 
     # Relationships optional here; mostly append-only log
+
 
