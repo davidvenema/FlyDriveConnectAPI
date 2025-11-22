@@ -84,12 +84,29 @@ def social_login(payload: SocialLoginRequest, db: Session = Depends(get_db)):
             name=name,
             email=email,
             platform=provider,
+            status="pending_verification",   # ★ NEW
         )
         db.add(member)
         db.commit()
         db.refresh(member)
 
-    # ---------------- CREATE 24-HOUR JWT ----------------
+    # ---------------- HANDLE ACCOUNT STATUS ----------------
+
+    # Rejected users are locked out
+    if member.status == "rejected":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Your account has been rejected.",
+        )
+
+    # Pending users cannot access the app yet
+    if member.status == "pending_verification":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Your account is pending manual verification.",
+        )
+
+    # ---------------- CREATE 24H JWT FOR APPROVED USERS ----------------
     access_token = create_access_token(data={"sub": member.email})
 
     return Token(access_token=access_token, token_type="bearer")
