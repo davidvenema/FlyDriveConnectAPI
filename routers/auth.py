@@ -1,3 +1,4 @@
+import os
 import requests
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
@@ -10,32 +11,27 @@ from security import create_access_token
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 GOOGLE_TOKENINFO_URL = "https://oauth2.googleapis.com/tokeninfo"
+GOOGLE_WEB_CLIENT_ID = os.getenv("GOOGLE_WEB_CLIENT_ID")
 
 
-# ------------------------------------------------------
-# GOOGLE TOKEN VERIFICATION
-# ------------------------------------------------------
-def verify_google_id_token(id_token: str) -> dict | None:
-    """
-    Verifies a Google ID token using Google's tokeninfo endpoint.
-    This automatically checks the signature and expiry.
-
-    IMPORTANT:
-      In production, verify 'aud' against your Android/iOS client IDs.
-    """
+# -----------------------------------------------------
+# VERIFY GOOGLE TOKEN
+# -----------------------------------------------------
+def verify_google_id_token(id_token: str):
     try:
         resp = requests.get(GOOGLE_TOKENINFO_URL, params={"id_token": id_token})
         if resp.status_code != 200:
             return None
+
         data = resp.json()
 
-        # Must contain an email
+        # must contain email
         if "email" not in data:
             return None
 
-        # Optional: enforce audience check later
-        # if data.get("aud") != YOUR_ANDROID_CLIENT_ID:
-        #     return None
+        # enforce correct AUDIENCE
+        if GOOGLE_WEB_CLIENT_ID and data.get("aud") != GOOGLE_WEB_CLIENT_ID:
+            return None
 
         return data
 
@@ -43,70 +39,61 @@ def verify_google_id_token(id_token: str) -> dict | None:
         return None
 
 
-# ------------------------------------------------------
-# LOGIN (GOOGLE or APPLE — Apple disabled for now)
-# ------------------------------------------------------
-@router.post("/login", response_model=Token)
-def social_login(payload: SocialLoginRequest, db: Session = Depends(get_db)):
-    provider = payload.provider.lower()
+# -----------------------------------------------------
+# POST /auth/google
+# -----------------------------------------------------
+@router.post("/google", response_model=Token)
+def login_with_google(payload: SocialLoginRequest, db: Session = Depends(get_db)):
 
-    # ---------------- GOOGLE ----------------
-    if provider == "google":
-        data = verify_google_id_token(payload.id_token)
+    if payload.provider != "google":
+        raise HTTPException(status_code=400, detail="Unsupported provider")
 
-        if not data:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid Google ID token",
-            )
+    # Verify the Google token
+    data = verify_google_id_token(payload.id_token)
+    if not data:
+        raise HTTPException(status_code=401, detail="Invalid Google token")
 
-    # ---------------- APPLE (NOT YET IMPLEMENTED) ----------------
-    elif provider == "apple":
-        raise HTTPException(
-            status_code=status.HTTP_501_NOT_IMPLEMENTED,
-            detail="Apple Sign-In not implemented yet",
-        )
+    email = data["email"].lower()
+    name = (
+        data.get("name")
+        or f"{data.get('given_name', '')} {data.get('family_name', '')}".strip()
+    )
 
-    else:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Unsupported provider",
-        )
-
-    email = data.get("email")
-    name = data.get("name") or data.get("given_name") or ""
-
-    # ---------------- FIND OR CREATE MEMBER ----------------
+    # Find or create
     member = db.query(Member).filter(Member.email == email).first()
 
     if not member:
         member = Member(
-            name=name,
             email=email,
-            platform=provider,
-            status="pending_verification",   # ★ NEW
+            name=name,
+            platform="google",
+            status="pending_verification"
         )
         db.add(member)
         db.commit()
         db.refresh(member)
 
-    # ---------------- HANDLE ACCOUNT STATUS ----------------
+    else:
+        # update platform/name if needed
+        dirty = False
+        if name and member.name != name:
+            member.name = name
+            dirty = True
+        if member.platform != "google":
+            member.platform = "google"
+            dirty = True
 
-    # Rejected users are locked out
+        if dirty:
+            db.commit()
+            db.refresh(member)
+
+    # Enforce verification rules
     if member.status == "rejected":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Your account has been rejected.",
-        )
+        raise HTTPException(status_code=403, detail="Account rejected")
 
-    # Pending users cannot access the app yet
     if member.status == "pending_verification":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Your account is pending manual verification.",
-        )
+        raise HTTPException(status_code=403, detail="Account pending verification")
 
-    # ---------------- CREATE 24H JWT FOR APPROVED USERS ----------------
-    access_token = create_access_token(data={"sub": member.email})
-
-    return Token(access_token=access_token, token_type="bearer")
+    # Create JWT
+    token = create_access_token({"sub": member.email})
+    return Token(access_token=token)
