@@ -82,16 +82,22 @@ class MemberOut(MemberBase):
 
 # Bookings
 class BookingBase(BaseModel):
-    member_id: int
     car_id: int
     start_time: datetime
     end_time: datetime
     status: Optional[str] = "pending"
+    member_id: Optional[int] = None  # ← backend will fill this from JWT
     photos_before_urls: Optional[Any] = None
     photos_after_urls: Optional[Any] = None
 
+
 class BookingCreate(BookingBase):
+    """
+    Android will NOT send member_id
+    Backend will override member_id using current_user.members_id
+    """
     pass
+
 
 class BookingUpdate(BaseModel):
     start_time: Optional[datetime] = None
@@ -100,11 +106,14 @@ class BookingUpdate(BaseModel):
     photos_before_urls: Optional[Any] = None
     photos_after_urls: Optional[Any] = None
 
+
 class BookingOut(BookingBase):
     bookings_id: int
     created_at: Optional[datetime] = None
+
     class Config:
         from_attributes = True
+
 
 # Rates
 class RateBase(BaseModel):
@@ -225,4 +234,5 @@ class AuthResponse(BaseModel):
     status: str                      # "verified" | "pending_verification" | "rejected"
     access_token: Optional[str] = "" # empty if not verified
     token_type: Optional[str] = ""   # empty if not verified
+
 
