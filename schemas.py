@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Dict, Optional, List, Any
+from typing import Literal, Dict, Optional, List, Any
 from datetime import datetime, date
 
 # Airports
@@ -219,7 +219,5 @@ class BookingPhotoUpdate(BaseModel):
 
 class Token(BaseModel):
     access_token: str
-    token_type: str
-
-
+    token_type: str = "bearer"
 
