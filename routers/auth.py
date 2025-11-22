@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from database import get_db
 from models import Member
-from schemas import SocialLoginRequest, Token
+from schemas import SocialLoginRequest, AuthResponse
 from security import create_access_token
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -14,9 +14,6 @@ GOOGLE_TOKENINFO_URL = "https://oauth2.googleapis.com/tokeninfo"
 GOOGLE_WEB_CLIENT_ID = os.getenv("GOOGLE_WEB_CLIENT_ID")
 
 
-# -----------------------------------------------------
-# VERIFY GOOGLE TOKEN
-# -----------------------------------------------------
 def verify_google_id_token(id_token: str):
     try:
         resp = requests.get(GOOGLE_TOKENINFO_URL, params={"id_token": id_token})
@@ -29,7 +26,7 @@ def verify_google_id_token(id_token: str):
         if "email" not in data:
             return None
 
-        # enforce correct AUDIENCE
+        # enforce audience check (only if env var provided)
         if GOOGLE_WEB_CLIENT_ID and data.get("aud") != GOOGLE_WEB_CLIENT_ID:
             return None
 
@@ -39,61 +36,71 @@ def verify_google_id_token(id_token: str):
         return None
 
 
-# -----------------------------------------------------
-# POST /auth/google
-# -----------------------------------------------------
-@router.post("/google", response_model=Token)
-def login_with_google(payload: SocialLoginRequest, db: Session = Depends(get_db)):
+@router.post("/google", response_model=AuthResponse)
+def login_with_google(
+    payload: SocialLoginRequest,
+    db: Session = Depends(get_db)
+):
 
-    if payload.provider != "google":
+    if payload.provider.lower() != "google":
         raise HTTPException(status_code=400, detail="Unsupported provider")
 
-    # Verify the Google token
+    # Verify Google token
     data = verify_google_id_token(payload.id_token)
     if not data:
         raise HTTPException(status_code=401, detail="Invalid Google token")
 
     email = data["email"].lower()
-    name = (
-        data.get("name")
-        or f"{data.get('given_name', '')} {data.get('family_name', '')}".strip()
-    )
+    name = data.get("name") or f"{data.get('given_name', '')} {data.get('family_name', '')}".strip()
 
-    # Find or create
+    # Find member
     member = db.query(Member).filter(Member.email == email).first()
 
+    # Create new member
     if not member:
         member = Member(
             email=email,
             name=name,
             platform="google",
-            status="pending_verification"
+            status="pending_verification",
         )
         db.add(member)
         db.commit()
         db.refresh(member)
 
-    else:
-        # update platform/name if needed
-        dirty = False
-        if name and member.name != name:
-            member.name = name
-            dirty = True
-        if member.platform != "google":
-            member.platform = "google"
-            dirty = True
+    # Update name/platform if changed
+    dirty = False
+    if name and member.name != name:
+        member.name = name
+        dirty = True
+    if member.platform != "google":
+        member.platform = "google"
+        dirty = True
 
-        if dirty:
-            db.commit()
-            db.refresh(member)
+    if dirty:
+        db.commit()
+        db.refresh(member)
 
-    # Enforce verification rules
+    # Handle states
     if member.status == "rejected":
-        raise HTTPException(status_code=403, detail="Account rejected")
+        return AuthResponse(
+            status="rejected",
+            access_token="",
+            token_type=""
+        )
 
     if member.status == "pending_verification":
-        raise HTTPException(status_code=403, detail="Account pending verification")
+        return AuthResponse(
+            status="pending_verification",
+            access_token="",
+            token_type=""
+        )
 
-    # Create JWT
+    # VERIFIED (normal)
     token = create_access_token({"sub": member.email})
-    return Token(access_token=token)
+
+    return AuthResponse(
+        status="verified",
+        access_token=token,
+        token_type="bearer"
+    )
