@@ -1,11 +1,11 @@
 import os
 import requests
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from database import get_db
 from models import Member
-from schemas import SocialLoginRequest, AuthResponse
+from schemas import SocialLoginRequest, AuthResponse, MemberOut
 from security import create_access_token
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -14,6 +14,9 @@ GOOGLE_TOKENINFO_URL = "https://oauth2.googleapis.com/tokeninfo"
 GOOGLE_WEB_CLIENT_ID = os.getenv("GOOGLE_WEB_CLIENT_ID")
 
 
+# ---------------------------------------------------------
+# Validate Google ID Token
+# ---------------------------------------------------------
 def verify_google_id_token(id_token: str):
     try:
         resp = requests.get(GOOGLE_TOKENINFO_URL, params={"id_token": id_token})
@@ -22,15 +25,11 @@ def verify_google_id_token(id_token: str):
 
         data = resp.json()
 
-        # DEBUG
-        print("DEBUG GOOGLE TOKENINFO:", data)
-        print("DEBUG EXPECTED AUD:", GOOGLE_WEB_CLIENT_ID)
-        print("DEBUG ACTUAL AUD:", data.get("aud"))
-
+        # Must have email
         if "email" not in data:
             return None
 
-        # enforce correct AUDIENCE
+        # Ensure audience matches our Web Client ID
         if GOOGLE_WEB_CLIENT_ID and data.get("aud") != GOOGLE_WEB_CLIENT_ID:
             return None
 
@@ -40,6 +39,10 @@ def verify_google_id_token(id_token: str):
         print("verify_google_id_token ERROR:", e)
         return None
 
+
+# ---------------------------------------------------------
+# POST /auth/google
+# ---------------------------------------------------------
 @router.post("/google", response_model=AuthResponse)
 def login_with_google(
     payload: SocialLoginRequest,
@@ -49,7 +52,7 @@ def login_with_google(
     if payload.provider.lower() != "google":
         raise HTTPException(status_code=400, detail="Unsupported provider")
 
-    # Verify Google token
+    # Verify ID token with Google
     data = verify_google_id_token(payload.id_token)
     if not data:
         raise HTTPException(status_code=401, detail="Invalid Google token")
@@ -57,16 +60,16 @@ def login_with_google(
     email = data["email"].lower()
     name = data.get("name") or f"{data.get('given_name', '')} {data.get('family_name', '')}".strip()
 
-    # Find member
+    # Look for existing member
     member = db.query(Member).filter(Member.email == email).first()
 
-    # Create new member
+    # If no account -> create as *new_user*
     if not member:
         member = Member(
             email=email,
             name=name,
             platform="google",
-            status="pending_verification",
+            status="new_user",      # ← IMPORTANT
         )
         db.add(member)
         db.commit()
@@ -85,26 +88,46 @@ def login_with_google(
         db.commit()
         db.refresh(member)
 
-    # Handle states
+    # -----------------------------
+    # Return based on status
+    # -----------------------------
+    # 1. Rejected → no token
     if member.status == "rejected":
         return AuthResponse(
             status="rejected",
-            access_token="",
-            token_type=""
+            access_token=None,
+            token_type=None,
+            member=MemberOut.model_validate(member)
         )
 
+    # 2. Pending verification → no token
     if member.status == "pending_verification":
         return AuthResponse(
             status="pending_verification",
-            access_token="",
-            token_type=""
+            access_token=None,
+            token_type=None,
+            member=MemberOut.model_validate(member)
         )
 
-    # VERIFIED (normal)
-    token = create_access_token({"sub": member.email})
+    # 3. new_user → they MUST complete profile
+    if member.status == "new_user":
+        token = create_access_token({"sub": member.email})
+        return AuthResponse(
+            status="new_user",
+            access_token=token,
+            token_type="bearer",
+            member=MemberOut.model_validate(member)
+        )
 
-    return AuthResponse(
-        status="verified",
-        access_token=token,
-        token_type="bearer"
-    )
+    # 4. verified → full access
+    if member.status == "verified":
+        token = create_access_token({"sub": member.email})
+        return AuthResponse(
+            status="verified",
+            access_token=token,
+            token_type="bearer",
+            member=MemberOut.model_validate(member)
+        )
+
+    # Should never reach here
+    raise HTTPException(500, "Unknown member status")
