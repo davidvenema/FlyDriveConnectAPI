@@ -15,33 +15,43 @@ GOOGLE_WEB_CLIENT_ID = os.getenv("GOOGLE_WEB_CLIENT_ID")
 
 
 # ---------------------------------------------------------
-# Validate Google ID Token
+# Validate Google ID Token (DEBUG ADDED)
 # ---------------------------------------------------------
 def verify_google_id_token(id_token: str):
     try:
+        print("\nDEBUG: Verifying Google token...")
         resp = requests.get(GOOGLE_TOKENINFO_URL, params={"id_token": id_token})
+        print("DEBUG: Google raw response:", resp.text)
+
         if resp.status_code != 200:
+            print("DEBUG: Google returned non-200")
             return None
 
         data = resp.json()
 
-        # Must have email
         if "email" not in data:
+            print("DEBUG: Google token missing email field")
             return None
 
-        # Ensure audience matches our Web Client ID
+        # Ensure correct audience
+        print(" DEBUG: Expected AUD:", GOOGLE_WEB_CLIENT_ID)
+        print(" DEBUG: Actual AUD:", data.get("aud"))
+
         if GOOGLE_WEB_CLIENT_ID and data.get("aud") != GOOGLE_WEB_CLIENT_ID:
+            print(" DEBUG: AUD mismatch")
             return None
 
+        print(" DEBUG: Google token validated OK")
         return data
 
     except Exception as e:
-        print("verify_google_id_token ERROR:", e)
+        print(" ERROR verify_google_id_token:", e)
         return None
 
 
+
 # ---------------------------------------------------------
-# POST /auth/google
+# POST /auth/google (DEBUG ADDED)
 # ---------------------------------------------------------
 @router.post("/google", response_model=AuthResponse)
 def login_with_google(
@@ -49,85 +59,58 @@ def login_with_google(
     db: Session = Depends(get_db)
 ):
 
-    if payload.provider.lower() != "google":
-        raise HTTPException(status_code=400, detail="Unsupported provider")
+    print("\n\n==============================")
+    print(" DEBUG: /auth/google called")
+    print("==============================")
+    print("Payload:", payload)
 
-    # Verify ID token with Google
+    # Verify ID token
     data = verify_google_id_token(payload.id_token)
     if not data:
+        print("DEBUG: Token verification failed")
         raise HTTPException(status_code=401, detail="Invalid Google token")
 
     email = data["email"].lower()
     name = data.get("name") or f"{data.get('given_name', '')} {data.get('family_name', '')}".strip()
 
-    # Look for existing member
+    print(" DEBUG: Google email =", email)
+    print(" DEBUG: Google name =", name)
+
+    # Find existing member
     member = db.query(Member).filter(Member.email == email).first()
 
-    # If no account -> create as *new_user*
     if not member:
+        print(" DEBUG: Creating NEW member")
         member = Member(
             email=email,
             name=name,
             platform="google",
-            status="new_user",      # ← IMPORTANT
+            status="new_user",
         )
         db.add(member)
         db.commit()
         db.refresh(member)
+    else:
+        print(" DEBUG: Existing member found → ID:", member.members_id)
+        print(" DEBUG: Existing status:", member.status)
 
-    # Update name/platform if changed
-    dirty = False
-    if name and member.name != name:
-        member.name = name
-        dirty = True
-    if member.platform != "google":
-        member.platform = "google"
-        dirty = True
+    # Handle status
+    print(" DEBUG: RETURNING STATUS:", member.status)
 
-    if dirty:
-        db.commit()
-        db.refresh(member)
+    # Return response
+    response = {
+        "status": member.status,
+        "access_token": None,
+        "token_type": None,
+        "member": MemberOut.model_validate(member)
+    }
 
-    # -----------------------------
-    # Return based on status
-    # -----------------------------
-    # 1. Rejected → no token
-    if member.status == "rejected":
-        return AuthResponse(
-            status="rejected",
-            access_token=None,
-            token_type=None,
-            member=MemberOut.model_validate(member)
-        )
-
-    # 2. Pending verification → no token
-    if member.status == "pending_verification":
-        return AuthResponse(
-            status="pending_verification",
-            access_token=None,
-            token_type=None,
-            member=MemberOut.model_validate(member)
-        )
-
-    # 3. new_user → they MUST complete profile
-    if member.status == "new_user":
+    if member.status in ["new_user", "verified"]:
         token = create_access_token({"sub": member.email})
-        return AuthResponse(
-            status="new_user",
-            access_token=token,
-            token_type="bearer",
-            member=MemberOut.model_validate(member)
-        )
+        response["access_token"] = token
+        response["token_type"] = "bearer"
 
-    # 4. verified → full access
-    if member.status == "verified":
-        token = create_access_token({"sub": member.email})
-        return AuthResponse(
-            status="verified",
-            access_token=token,
-            token_type="bearer",
-            member=MemberOut.model_validate(member)
-        )
+    print(" DEBUG: Final Response Body:", response)
+    print("====================================\n")
 
-    # Should never reach here
-    raise HTTPException(500, "Unknown member status")
+    return response
