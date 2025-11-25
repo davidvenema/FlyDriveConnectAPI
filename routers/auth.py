@@ -112,5 +112,6 @@ def login_with_google(
 
     print(" DEBUG: Final Response Body:", response)
     print("====================================\n")
-
-    return response
+    
+    # MUST return Pydantic model, not raw dict
+    return AuthResponse(**response)
