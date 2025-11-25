@@ -231,8 +231,14 @@ class Token(BaseModel):
     token_type: str = "bearer"
 
 class AuthResponse(BaseModel):
-    status: str                      # "verified" | "pending_verification" | "rejected"
-    access_token: Optional[str] = "" # empty if not verified
-    token_type: Optional[str] = ""   # empty if not verified
+    status: str                                      # "new_user" | "pending_verification" | "verified" | "rejected"
+    access_token: Optional[str] = None
+    token_type: Optional[str] = None
+    member: Optional[MemberOut] = None            
+    
+    class Config:
+        from_attributes = True
+
+
 
 
