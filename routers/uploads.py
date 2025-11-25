@@ -79,3 +79,33 @@ def get_presigned_upload_url(
         "public_url": public_url,
         "key": key
     }
+
+class SimplePresignRequest(BaseModel):
+    filename: str
+
+@router.post("/presign-user")
+def get_user_presigned_url(
+    req: SimplePresignRequest,
+    user=Depends(get_current_member),
+):
+    key = f"members/{user.members_id}/{req.filename}"
+
+    try:
+        upload_url = s3_client.generate_presigned_url(
+            ClientMethod="put_object",
+            Params={
+                "Bucket": S3_BUCKET,
+                "Key": key,
+                "ContentType": "image/jpeg",
+            },
+            ExpiresIn=60 * 10
+        )
+    except Exception as e:
+        raise HTTPException(500, f"Could not create presigned URL: {e}")
+
+    public_url = f"https://{S3_BUCKET}.s3.ap-southeast-2.amazonaws.com/{key}"
+
+    return {
+        "upload_url": upload_url,
+        "final_url": public_url
+    }
