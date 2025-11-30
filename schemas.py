@@ -67,6 +67,8 @@ class MemberBase(BaseModel):
     licence_front_url: Optional[str] = None
     licence_back_url: Optional[str] = None
     selfie_url: Optional[str] = None
+    licence_number: Optional[str] = None        # ← NEW
+    licence_expiry: Optional[date] = None       # ← NEW
     
 class MemberCreate(MemberBase):
     email: str
@@ -238,6 +240,7 @@ class AuthResponse(BaseModel):
     
     class Config:
         from_attributes = True
+
 
 
 
