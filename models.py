@@ -53,6 +53,7 @@ class Member(Base):
     licence_front_url = Column(Text, nullable=True)             # NEW
     licence_back_url = Column(Text, nullable=True)              # NEW
     selfie_url = Column(Text, nullable=True)                    # NEW
+    licence_number = Column(String, nullable=True)
 
     bookings = relationship("Booking", back_populates="member")
     subscriptions = relationship("Subscription", back_populates="member")
@@ -114,5 +115,6 @@ class SearchLog(Base):
     desired_end = Column(TIMESTAMP)
 
     # Relationships optional here; mostly append-only log
+
 
 
