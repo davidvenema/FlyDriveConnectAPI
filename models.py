@@ -46,7 +46,7 @@ class Member(Base):
     email = Column(String, index=True)
     dob = Column(Date)
     address = Column(Text)
-    renewal_date = Column(TIMESTAMP)
+    renewal_date = Column(TIMESTAMP)  #For Subscription renewal date.
     platform = Column(String)
     created_at = Column(TIMESTAMP)
     status = Column(String, default="pending_verification")     # NEW
@@ -54,6 +54,7 @@ class Member(Base):
     licence_back_url = Column(Text, nullable=True)              # NEW
     selfie_url = Column(Text, nullable=True)                    # NEW
     licence_number = Column(String, nullable=True)
+    licence_expiry = Column(Date, nullable=True)   # NEW
 
     bookings = relationship("Booking", back_populates="member")
     subscriptions = relationship("Subscription", back_populates="member")
@@ -115,6 +116,7 @@ class SearchLog(Base):
     desired_end = Column(TIMESTAMP)
 
     # Relationships optional here; mostly append-only log
+
 
 
 
