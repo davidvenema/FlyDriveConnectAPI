@@ -107,5 +107,6 @@ def get_user_presigned_url(
 
     return {
         "upload_url": upload_url,
-        "final_url": public_url
+        "public_url": public_url,   # <-- FIXED
+        "key": key                  # <-- FIXED
     }
