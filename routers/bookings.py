@@ -41,34 +41,21 @@ def merge_photo_json(existing: str | None, angle: str, url: str) -> str:
 def list_bookings(
     db: Session = Depends(get_db),
     current_user: Member = Depends(get_current_member),
-    member_id: int | None = None,
-    car_id: int | None = None,
-    from_time: datetime | None = None,
-    to_time: datetime | None = None,
 ):
     """
-    Optional filters:
-    - member_id
-    - car_id
-    - time range
+    Returns all bookings for the logged-in user,
+    including nested car + airport info.
     """
+    bookings = (
+        db.query(Booking)
+        .join(Booking.car)
+        .join(Car.airport)
+        .filter(Booking.member_id == current_user.members_id)
+        .order_by(Booking.start_time.desc())
+        .all()
+    )
 
-    q = db.query(Booking)
-
-    if member_id is not None:
-        q = q.filter(Booking.member_id == member_id)
-
-    if car_id is not None:
-        q = q.filter(Booking.car_id == car_id)
-
-    if from_time is not None:
-        q = q.filter(Booking.start_time >= from_time)
-
-    if to_time is not None:
-        q = q.filter(Booking.end_time <= to_time)
-
-    return q.order_by(Booking.start_time.desc()).all()
-
+    return bookings
 
 # ===================================================================
 # 2. CREATE BOOKING (authenticated)
@@ -214,3 +201,4 @@ def update_booking_photo(
         "angle": payload.angle,
         "url": payload.url,
     }
+
