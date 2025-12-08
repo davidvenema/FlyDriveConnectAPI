@@ -82,22 +82,39 @@ class MemberOut(MemberBase):
     class Config:
         from_attributes = True
 
+# ----------------------------
 # Bookings
+# ----------------------------
+
+class CarBrief(BaseModel):
+    cars_id: int
+    registration: Optional[str] = None
+    make_model: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
+class AirportBrief(BaseModel):
+    airports_id: int
+    name: str
+    icao_code: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
 class BookingBase(BaseModel):
     car_id: int
     start_time: datetime
     end_time: datetime
     status: Optional[str] = "pending"
-    member_id: Optional[int] = None  # ← backend will fill this from JWT
+    member_id: Optional[int] = None
     photos_before_urls: Optional[Any] = None
     photos_after_urls: Optional[Any] = None
 
 
 class BookingCreate(BookingBase):
-    """
-    Android will NOT send member_id
-    Backend will override member_id using current_user.members_id
-    """
     pass
 
 
@@ -109,14 +126,20 @@ class BookingUpdate(BaseModel):
     photos_after_urls: Optional[Any] = None
 
 
-class BookingOut(BookingBase):
+class BookingOut(BaseModel):
     bookings_id: int
+    start_time: datetime
+    end_time: datetime
+    status: Optional[str] = None
     created_at: Optional[datetime] = None
+
+    # NEW nested objects
+    car: CarBrief
+    airport: AirportBrief
 
     class Config:
         from_attributes = True
-
-
+        
 # Rates
 class RateBase(BaseModel):
     airports_id: Optional[int] = None
@@ -240,6 +263,7 @@ class AuthResponse(BaseModel):
     
     class Config:
         from_attributes = True
+
 
 
 
