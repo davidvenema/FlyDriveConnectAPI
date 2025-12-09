@@ -90,7 +90,8 @@ class CarBrief(BaseModel):
     cars_id: int
     registration: Optional[str] = None
     make_model: Optional[str] = None
-
+    airport: "AirportBrief"
+    
     class Config:
         from_attributes = True
 
@@ -135,7 +136,6 @@ class BookingOut(BaseModel):
 
     # NEW nested objects
     car: CarBrief
-    airport: AirportBrief
 
     class Config:
         from_attributes = True
@@ -263,6 +263,7 @@ class AuthResponse(BaseModel):
     
     class Config:
         from_attributes = True
+
 
 
 
