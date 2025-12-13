@@ -3,6 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import and_
 from datetime import datetime
+from utils.email_utils import send_booking_confirmation_email
 
 from database import get_db
 from security import get_current_member
@@ -102,12 +103,27 @@ def create_booking(
 
     # ---- Create booking ----
     new_booking = Booking(**payload.model_dump(exclude_unset=True))
-    db.add(new_booking)
-    db.commit()
-    db.refresh(new_booking)
+db.add(new_booking)
+db.commit()
+db.refresh(new_booking)
 
-    return new_booking
+# --- Send booking confirmation email (non-blocking) ---
+try:
+    # Ensure relationships are available
+    car = new_booking.car
+    airport = car.airport
 
+    send_booking_confirmation_email(
+        member=current_user,
+        booking=new_booking,
+        car=car,
+        airport=airport,
+    )
+except Exception as e:
+    # Never fail booking creation because of email
+    print(f"Booking email failed: {e!r}")
+
+return new_booking
 
 # ===================================================================
 # 3. UPDATE BOOKING (owner-only)
@@ -201,4 +217,5 @@ def update_booking_photo(
         "angle": payload.angle,
         "url": payload.url,
     }
+
 
