@@ -169,9 +169,33 @@ def delete_booking(
     db.commit()
     return {"status": "deleted", "booking_id": bookings_id}
 
+# ===================================================================
+# 5. START BOOKING
+# ===================================================================
+@router.put("/{bookings_id}/start", response_model=BookingOut)
+def start_hire(
+    bookings_id: int,
+    db: Session = Depends(get_db),
+    current_user: Member = Depends(get_current_member),
+):
+    booking = db.query(Booking).get(bookings_id)
+    if not booking:
+        raise HTTPException(status_code=404, detail="Booking not found")
+
+    if booking.member_id != current_user.members_id:
+        raise HTTPException(status_code=403, detail="Not your booking")
+
+    if booking.status != "confirmed":
+        raise HTTPException(status_code=400, detail="Cannot start hire")
+
+    booking.status = "in_progress"
+    db.commit()
+    db.refresh(booking)
+
+    return booking
 
 # ===================================================================
-# 5. UPLOAD (BEFORE/AFTER) PHOTOS TO A BOOKING
+# 6. UPLOAD (BEFORE/AFTER) PHOTOS TO A BOOKING
 # ===================================================================
 @router.post("/{booking_id}/photo")
 def update_booking_photo(
@@ -215,6 +239,7 @@ def update_booking_photo(
         "angle": payload.angle,
         "url": payload.url,
     }
+
 
 
 
