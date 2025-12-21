@@ -194,8 +194,34 @@ def start_hire(
 
     return booking
 
+# ==========
+# 6. GET ACTIVE BOOKINGS for this MEMBER
+#===========
+@router.get("/active", response_model=BookingOut | None)
+def get_active_booking(
+    db: Session = Depends(get_db),
+    current_user: Member = Depends(get_current_member),
+):
+    """
+    Returns the currently active/in-progress booking for this member,
+    or null if none exists.
+    """
+    booking = (
+        db.query(Booking)
+        .join(Booking.car)
+        .join(Car.airport)
+        .filter(
+            Booking.member_id == current_user.members_id,
+            Booking.status.in_(["in_progress", "active"]),
+        )
+        .order_by(Booking.start_time.desc())
+        .first()
+    )
+
+    return booking
+
 # ===================================================================
-# 6. UPLOAD (BEFORE/AFTER) PHOTOS TO A BOOKING
+# 7. UPLOAD (BEFORE/AFTER) PHOTOS TO A BOOKING
 # ===================================================================
 @router.post("/{booking_id}/photo")
 def update_booking_photo(
@@ -239,6 +265,7 @@ def update_booking_photo(
         "angle": payload.angle,
         "url": payload.url,
     }
+
 
 
 
