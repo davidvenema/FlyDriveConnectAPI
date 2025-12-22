@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import and_
-from datetime import datetime
+from datetime import datetime, timezone
 
 from database import get_db
 from security import get_current_member_optional  # NEW (optional auth)
@@ -33,6 +33,12 @@ def check_availability(
 
     if not airport:
         raise HTTPException(status_code=404, detail="Airport not found or inactive")
+    
+    if start_time.tzinfo is None or end_time.tzinfo is None:
+    raise HTTPException(
+        status_code=400,
+        detail="start_time and end_time must include timezone information (UTC)"
+    )
 
     if end_time <= start_time:
         raise HTTPException(status_code=400, detail="End time must be after start time")
@@ -64,7 +70,7 @@ def check_availability(
         member_id=getattr(current_user, "members_id", None),  # None if anonymous
         airport_id=airport_id,
         search_date=start_time.date(),
-        search_time=datetime.utcnow(),
+        search_time=datetime.now(timezone.utc),
         desired_start=start_time,
         desired_end=end_time
     )
@@ -98,4 +104,5 @@ def check_availability(
             for c in available
         ]
     }
+
 
