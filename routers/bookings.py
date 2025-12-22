@@ -195,24 +195,51 @@ def start_hire(
     return booking
 
 # ==========
-# 6. GET ACTIVE BOOKINGS for this MEMBER
-#===========
+# 6. GET ACTIVE BOOKING for this MEMBER
+# ==========
 @router.get("/active", response_model=BookingOut | None)
 def get_active_booking(
     db: Session = Depends(get_db),
     current_user: Member = Depends(get_current_member),
 ):
     """
-    Returns the currently active/in-progress booking for this member,
-    or null if none exists.
+    Returns the currently active (in-progress) booking for this member,
+    automatically expiring stale bookings.
     """
+
+    now = datetime.utcnow()
+
+    # -------------------------------------------------
+    # A. EXPIRE stale in-progress bookings  *NOTE THIS WILL NEED TO CHANGE>
+    # -------------------------------------------------
+    expired = (
+        db.query(Booking)
+        .filter(
+            Booking.member_id == current_user.members_id,
+            Booking.status == "in_progress",
+            Booking.end_time < now,
+        )
+        .update(
+            {Booking.status: "expired"},
+            synchronize_session=False,
+        )
+    )
+
+    if expired:
+        db.commit()
+
+    # -------------------------------------------------
+    # B. FETCH currently active booking
+    # -------------------------------------------------
     booking = (
         db.query(Booking)
         .join(Booking.car)
         .join(Car.airport)
         .filter(
             Booking.member_id == current_user.members_id,
-            Booking.status.in_(["in_progress", "active"]),
+            Booking.status == "in_progress",
+            Booking.start_time <= now,
+            Booking.end_time >= now,
         )
         .order_by(Booking.start_time.desc())
         .first()
@@ -265,6 +292,7 @@ def update_booking_photo(
         "angle": payload.angle,
         "url": payload.url,
     }
+
 
 
 
