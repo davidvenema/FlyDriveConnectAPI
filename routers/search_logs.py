@@ -5,6 +5,7 @@ from database import get_db
 from security import get_current_member
 from models import SearchLog
 from schemas import SearchLogCreate, SearchLogOut
+from datetime import timezone
 
 router = APIRouter(prefix="/search_logs", tags=["search_logs"])
 
@@ -46,8 +47,22 @@ def create_log(
     payload: SearchLogCreate,
     db: Session = Depends(get_db),
 ):
-    obj = SearchLog(**payload.model_dump(exclude_unset=True))
+    data = payload.model_dump(exclude_unset=True)
+
+    for field in ("search_time", "desired_start", "desired_end"):
+        dt = data.get(field)
+        if dt is not None:
+            if dt.tzinfo is None:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"{field} must include timezone information (UTC)",
+                )
+            data[field] = dt.astimezone(timezone.utc)
+
+    obj = SearchLog(**data)
     db.add(obj)
     db.commit()
     db.refresh(obj)
     return obj
+
+
