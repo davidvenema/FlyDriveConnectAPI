@@ -1,8 +1,8 @@
 import json
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from sqlalchemy import and_
-from datetime import datetime
+from sqlalchemy import and_, desc
+from datetime import datetime, timedelta
 from utils.email_utils import send_booking_confirmation_email
 
 from database import get_db
@@ -248,7 +248,42 @@ def get_active_booking(
     return booking
 
 # ===================================================================
-# 7. UPLOAD (BEFORE/AFTER) PHOTOS TO A BOOKING
+# 7. CHECK IF THEE ARE ANY BOOKINGS FOR CAR JUST BEFORE PROVIDED start_time, with BUFFER of x minutes. Returns true/false
+# ===================================================================
+
+@router.get("/is-preceding-booking")
+def is_preceding_booking(
+    car_id: int,
+    start_time: datetime,
+    db: Session = Depends(get_db),
+    current_user: Member = Depends(get_current_member),
+):
+    """
+    Returns whether there is a booking for this car that ends shortly
+    before the given start_time.
+    """
+
+    BUFFER = timedelta(minutes=30)
+
+    exists = (
+        db.query(Booking)
+        .filter(
+            Booking.car_id == car_id,
+            Booking.end_time <= start_time,
+            Booking.end_time >= start_time - BUFFER,
+            Booking.status.in_(["confirmed", "in_progress"]),
+        )
+        .order_by(desc(Booking.end_time))
+        .first()
+        is not None
+    )
+
+    return {
+        "is_preceding_booking": exists
+    }
+
+# ===================================================================
+# 8. UPLOAD (BEFORE/AFTER) PHOTOS TO A BOOKING
 # ===================================================================
 @router.post("/{booking_id}/photo")
 def update_booking_photo(
@@ -292,6 +327,7 @@ def update_booking_photo(
         "angle": payload.angle,
         "url": payload.url,
     }
+
 
 
 
