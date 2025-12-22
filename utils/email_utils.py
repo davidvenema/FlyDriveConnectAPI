@@ -14,6 +14,11 @@ def generate_booking_ics(booking: Booking, car: Car, airport: Airport) -> str:
     Generate a simple .ics calendar event for the booking.
     All times are treated as UTC here; adjust if you want local zones.
     """
+    mel_tz = ZoneInfo("Australia/Melbourne")
+    
+    start_local = booking.start_time.astimezone(mel_tz)
+    end_local = booking.end_time.astimezone(mel_tz)
+    
     dt_start = booking.start_time.astimezone(timezone.utc)
     dt_end = booking.end_time.astimezone(timezone.utc)
 
@@ -75,8 +80,8 @@ Your FlyDrive booking is confirmed.
 
 Car: {car.make_model or car.registration}
 Airport: {airport.name}
-Start: {booking.start_time}
-End:   {booking.end_time}
+Start: {start_local.strftime('%d %b %Y, %I:%M %p')}
+End: {end_local.strftime('%d %b %Y, %I:%M %p')}
 Status: {booking.status}
 
 You can also add this to your calendar using the attached event.
