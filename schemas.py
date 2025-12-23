@@ -134,6 +134,9 @@ class BookingOut(BaseModel):
     status: Optional[str] = None
     created_at: Optional[datetime] = None
 
+    hire_started_at: Optional[datetime] = None
+    keys_retrieved_at: Optional[datetime] = None
+    
     # NEW nested objects
     car: CarBrief
 
@@ -263,6 +266,7 @@ class AuthResponse(BaseModel):
     
     class Config:
         from_attributes = True
+
 
 
 
