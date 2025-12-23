@@ -111,9 +111,17 @@ class BookingBase(BaseModel):
     end_time: datetime
     status: Optional[str] = "pending"
     member_id: Optional[int] = None
-    photos_before_urls: Optional[Any] = None
-    photos_after_urls: Optional[Any] = None
-
+    # BEFORE
+    photourl_before_front: Optional[str] = None
+    photourl_before_left: Optional[str] = None
+    photourl_before_right: Optional[str] = None
+    photourl_before_rear: Optional[str] = None
+    # AFTER
+    photourl_after_front: Optional[str] = None
+    photourl_after_left: Optional[str] = None
+    photourl_after_right: Optional[str] = None
+    photourl_after_rear: Optional[str] = None
+    photourl_after_dash: Optional[str] = None
 
 class BookingCreate(BookingBase):
     pass
@@ -123,8 +131,17 @@ class BookingUpdate(BaseModel):
     start_time: Optional[datetime] = None
     end_time: Optional[datetime] = None
     status: Optional[str] = None
-    photos_before_urls: Optional[Any] = None
-    photos_after_urls: Optional[Any] = None
+    # BEFORE
+    photourl_before_front: Optional[str] = None
+    photourl_before_left: Optional[str] = None
+    photourl_before_right: Optional[str] = None
+    photourl_before_rear: Optional[str] = None
+    # AFTER
+    photourl_after_front: Optional[str] = None
+    photourl_after_left: Optional[str] = None
+    photourl_after_right: Optional[str] = None
+    photourl_after_rear: Optional[str] = None
+    photourl_after_dash: Optional[str] = None
 
 
 class BookingOut(BaseModel):
@@ -250,9 +267,11 @@ class SocialLoginRequest(BaseModel):
     id_token: str  # ID token returned by Google/Apple on the device
 
 class BookingPhotoUpdate(BaseModel):
-    photo_type: str          # "before" or "after"
-    angle: str               # "left", "right", "front", etc.
-    url: str                 # public URL returned from /upload/presign
+    phase: Literal["before", "after"]
+    angle: Literal[
+        "front", "left", "right", "rear", "dash"
+    ]
+    url: str
 
 class Token(BaseModel):
     access_token: str
@@ -266,6 +285,7 @@ class AuthResponse(BaseModel):
     
     class Config:
         from_attributes = True
+
 
 
 
