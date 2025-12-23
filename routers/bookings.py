@@ -210,6 +210,31 @@ def get_active_booking(
     return booking
 
 # ===================================================================
+# 6.5 GET BOOKING BY ID
+# ===================================================================
+@router.get("/{bookings_id}", response_model=BookingOut)
+def get_booking_by_id(
+    bookings_id: int,
+    db: Session = Depends(get_db),
+    current_user: Member = Depends(get_current_member),
+):
+    booking = (
+        db.query(Booking)
+        .join(Booking.car)
+        .join(Car.airport)
+        .filter(
+            Booking.bookings_id == bookings_id,
+            Booking.member_id == current_user.members_id,
+        )
+        .first()
+    )
+
+    if not booking:
+        raise HTTPException(status_code=404, detail="Booking not found")
+
+    return booking
+
+# ===================================================================
 # 7. CHECK PRECEDING BOOKING
 # ===================================================================
 @router.get("/is-preceding-booking")
@@ -279,3 +304,4 @@ def update_booking_photo(
         "slot": column_name,
         "url": payload.url,
     }
+
