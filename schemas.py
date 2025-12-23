@@ -90,20 +90,20 @@ class CarBrief(BaseModel):
     cars_id: int
     registration: Optional[str] = None
     make_model: Optional[str] = None
+    image_url: Optional[str] = None
     airport: "AirportBrief"
     
     class Config:
         from_attributes = True
 
-
 class AirportBrief(BaseModel):
     airports_id: int
     name: str
     icao_code: Optional[str] = None
-
+    parking_description: Optional[str] = None
+        
     class Config:
         from_attributes = True
-
 
 class BookingBase(BaseModel):
     car_id: int
@@ -285,6 +285,7 @@ class AuthResponse(BaseModel):
     
     class Config:
         from_attributes = True
+
 
 
 
