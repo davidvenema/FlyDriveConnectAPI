@@ -89,8 +89,18 @@ class Booking(Base):
     end_time = Column(TIMESTAMP(timezone=True))
     status = Column(String)
 
-    photos_before_urls = Column(Text)
-    photos_after_urls = Column(Text)
+    # BEFORE photos
+    photourl_before_front = Column(Text)
+    photourl_before_left  = Column(Text)
+    photourl_before_right = Column(Text)
+    photourl_before_rear  = Column(Text)
+    
+    # AFTER photos
+    photourl_after_front  = Column(Text)
+    photourl_after_left   = Column(Text)
+    photourl_after_right  = Column(Text)
+    photourl_after_rear   = Column(Text)
+    photourl_after_dash   = Column(Text)
 
     created_at = Column(TIMESTAMP(timezone=True))
     hire_started_at = Column(TIMESTAMP(timezone=True))
@@ -149,3 +159,4 @@ class SearchLog(Base):
     search_time = Column(TIMESTAMP(timezone=True))
     desired_start = Column(TIMESTAMP(timezone=True))
     desired_end = Column(TIMESTAMP(timezone=True))
+
