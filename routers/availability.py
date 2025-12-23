@@ -35,10 +35,10 @@ def check_availability(
         raise HTTPException(status_code=404, detail="Airport not found or inactive")
     
     if start_time.tzinfo is None or end_time.tzinfo is None:
-    raise HTTPException(
-        status_code=400,
-        detail="start_time and end_time must include timezone information (UTC)"
-    )
+        raise HTTPException(
+            status_code=400,
+            detail="start_time and end_time must include timezone information (UTC)"
+        )
 
     if end_time <= start_time:
         raise HTTPException(status_code=400, detail="End time must be after start time")
@@ -104,5 +104,6 @@ def check_availability(
             for c in available
         ]
     }
+
 
 
