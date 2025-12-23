@@ -21,18 +21,6 @@ router = APIRouter(
     dependencies=[Depends(get_current_member)],
 )
 
-# -------------------------------------------------------------------
-# Utility: Merge JSON for before/after photos
-# -------------------------------------------------------------------
-def merge_photo_json(existing: str | None, angle: str, url: str) -> str:
-    try:
-        data = json.loads(existing) if existing else {}
-    except Exception:
-        data = {}
-
-    data[angle] = url
-    return json.dumps(data)
-
 # ===================================================================
 # 1. LIST BOOKINGS
 # ===================================================================
@@ -272,19 +260,15 @@ def update_booking_photo(
     if booking.member_id != current_user.members_id:
         raise HTTPException(status_code=403, detail="Not your booking")
 
-    if payload.photo_type == "before":
-        booking.photos_before_urls = merge_photo_json(
-            booking.photos_before_urls, payload.angle, payload.url
-        )
-    elif payload.photo_type == "after":
-        booking.photos_after_urls = merge_photo_json(
-            booking.photos_after_urls, payload.angle, payload.url
-        )
-    else:
+    column_name = f"photourl_{payload.phase}_{payload.angle}"
+
+    if not hasattr(Booking, column_name):
         raise HTTPException(
             status_code=400,
-            detail="photo_type must be 'before' or 'after'",
+            detail=f"Invalid photo slot: {column_name}",
         )
+
+    setattr(booking, column_name, payload.url)
 
     db.commit()
     db.refresh(booking)
@@ -292,7 +276,6 @@ def update_booking_photo(
     return {
         "status": "updated",
         "booking_id": booking_id,
-        "photo_type": payload.photo_type,
-        "angle": payload.angle,
+        "slot": column_name,
         "url": payload.url,
     }
