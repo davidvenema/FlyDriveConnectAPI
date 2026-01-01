@@ -171,6 +171,32 @@ def start_hire(
     return booking
 
 # ===================================================================
+# 5.5 COMPLETE KEY RETRIEVAL (Physical Confirmation)
+# ===================================================================
+@router.put("/{bookings_id}/complete-keys", response_model=BookingOut)
+def complete_keys(
+    bookings_id: int,
+    db: Session = Depends(get_db),
+    current_user: Member = Depends(get_current_member),
+):
+    booking = db.query(Booking).get(bookings_id)
+    if not booking:
+        raise HTTPException(status_code=404, detail="Booking not found")
+
+    if booking.member_id != current_user.members_id:
+        raise HTTPException(status_code=403, detail="Not your booking")
+
+    # Set the key retrieval timestamp - the "Physical Truth" milestone
+    booking.keys_retrieved_at = datetime.now(timezone.utc)
+    
+    # Ensure status is definitely in_progress if it wasn't already
+    booking.status = "in_progress"
+
+    db.commit()
+    db.refresh(booking)
+    return booking
+
+# ===================================================================
 # 6. GET ACTIVE BOOKING
 # ===================================================================
 @router.get("/active", response_model=BookingOut | None)
@@ -304,4 +330,5 @@ def update_booking_photo(
         "slot": column_name,
         "url": payload.url,
     }
+
 
