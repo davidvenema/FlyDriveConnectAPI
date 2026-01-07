@@ -102,6 +102,8 @@ class AirportBrief(BaseModel):
     name: str
     icao_code: Optional[str] = None
     parking_description: Optional[str] = None
+    latitude: float  # Added
+    longitude: float # Added
         
     class Config:
         from_attributes = True
@@ -286,6 +288,7 @@ class AuthResponse(BaseModel):
     
     class Config:
         from_attributes = True
+
 
 
 
