@@ -365,6 +365,55 @@ def update_booking_photo(
         "url": payload.url,
     }
 
+# ===================================================================
+# 9. EXTEND BOOKING (Safe Extension)
+# ===================================================================
+@router.put("/{bookings_id}/extend", response_model=BookingOut)
+def extend_booking(
+    bookings_id: int,
+    extension_minutes: int, # Sent as a query param or part of a small schema
+    db: Session = Depends(get_db),
+    current_user: Member = Depends(get_current_member),
+):
+    booking = db.query(Booking).get(bookings_id)
+    if not booking:
+        raise HTTPException(status_code=404, detail="Booking not found")
 
+    if booking.member_id != current_user.members_id:
+        raise HTTPException(status_code=403, detail="Not your booking")
 
+    if booking.status != "in_progress":
+        raise HTTPException(status_code=400, detail="Only active hires can be extended")
 
+    # 1. Calculate the proposed new end time
+    new_end_time = booking.end_time + timedelta(minutes=extension_minutes)
+    
+    # 2. Define the 'Handover Buffer' (30 mins)
+    buffer = timedelta(minutes=30)
+
+    # 3. Check for overlaps with FUTURE confirmed bookings
+    # A conflict exists if another booking starts BEFORE our (new_end_time + buffer)
+    conflict = (
+        db.query(Booking)
+        .filter(
+            Booking.car_id == booking.car_id,
+            Booking.status == "confirmed",
+            Booking.bookings_id != bookings_id, # Don't conflict with yourself
+            Booking.start_time < new_end_time + buffer,
+            Booking.start_time >= booking.end_time # Starts after our current slot
+        )
+        .first()
+    )
+
+    if conflict:
+        raise HTTPException(
+            status_code=409,
+            detail="Cannot extend: Another booking is scheduled shortly after."
+        )
+
+    # 4. Apply the extension
+    booking.end_time = new_end_time
+    
+    db.commit()
+    db.refresh(booking)
+    return booking
