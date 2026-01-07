@@ -91,6 +91,7 @@ class CarBrief(BaseModel):
     registration: Optional[str] = None
     make_model: Optional[str] = None
     image_url: Optional[str] = None
+    price_hourly: Optional[float] = None
     airport: "AirportBrief"
     
     class Config:
@@ -285,6 +286,7 @@ class AuthResponse(BaseModel):
     
     class Config:
         from_attributes = True
+
 
 
 
