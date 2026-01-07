@@ -295,6 +295,43 @@ def is_preceding_booking(
     return {"is_preceding_booking": exists}
 
 # ===================================================================
+# 7.5 CHECK FOR FOLLOWING BOOKING (REFINED)
+# ===================================================================
+@router.get("/check-following-booking")
+def check_following_booking(
+    car_id: int,
+    current_end_time: datetime,
+    db: Session = Depends(get_db),
+    current_user: Member = Depends(get_current_member),
+):
+    if current_end_time.tzinfo is None:
+        raise HTTPException(
+            status_code=400,
+            detail="current_end_time must include timezone information (UTC)",
+        )
+
+    current_end_time = current_end_time.astimezone(timezone.utc)
+    
+    # We define a 'handover' buffer (e.g., 15-30 mins) to allow for 
+    # cleaning or just breathing room between different users.
+    buffer = timedelta(minutes=30)
+
+    # We only care about FUTURE 'confirmed' bookings for this car
+    exists = (
+        db.query(Booking)
+        .filter(
+            Booking.car_id == car_id,
+            Booking.status == "confirmed",
+            Booking.start_time >= current_end_time,
+            Booking.start_time <= current_end_time + buffer
+        )
+        .first()
+        is not None
+    )
+
+    return {"is_following_booking": exists}
+
+# ===================================================================
 # 8. UPLOAD BOOKING PHOTOS
 # ===================================================================
 @router.post("/{booking_id}/photo")
@@ -330,5 +367,6 @@ def update_booking_photo(
         "slot": column_name,
         "url": payload.url,
     }
+
 
 
