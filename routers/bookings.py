@@ -295,10 +295,10 @@ def is_preceding_booking(
     return {"is_preceding_booking": exists}
 
 # ===================================================================
-# 7.5 CHECK FOR FOLLOWING BOOKING (REFINED)
+# 7.5 GET NEXT BOOKING START TIME
 # ===================================================================
-@router.get("/check-following-booking")
-def check_following_booking(
+@router.get("/next-booking-start")
+def get_next_booking_start(
     car_id: int,
     current_end_time: datetime,
     db: Session = Depends(get_db),
@@ -312,25 +312,22 @@ def check_following_booking(
 
     current_end_time = current_end_time.astimezone(timezone.utc)
     
-    # We define a 'handover' buffer (e.g., 15-30 mins) to allow for 
-    # cleaning or just breathing room between different users.
-    buffer = timedelta(minutes=30)
-
-    # We only care about FUTURE 'confirmed' bookings for this car
-    exists = (
+    # Simply find the very next confirmed booking for this car
+    next_booking = (
         db.query(Booking)
         .filter(
             Booking.car_id == car_id,
             Booking.status == "confirmed",
-            Booking.start_time >= current_end_time,
-            Booking.start_time <= current_end_time + buffer
+            Booking.start_time >= current_end_time
         )
+        .order_by(Booking.start_time.asc())
         .first()
-        is not None
     )
 
-    return {"is_following_booking": exists}
-
+    return {
+        "next_booking_start": next_booking.start_time if next_booking else None
+    }
+    
 # ===================================================================
 # 8. UPLOAD BOOKING PHOTOS
 # ===================================================================
@@ -367,6 +364,7 @@ def update_booking_photo(
         "slot": column_name,
         "url": payload.url,
     }
+
 
 
 
