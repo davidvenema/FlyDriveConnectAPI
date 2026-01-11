@@ -124,7 +124,10 @@ class BookingBase(BaseModel):
     photourl_after_left: Optional[str] = None
     photourl_after_right: Optional[str] = None
     photourl_after_rear: Optional[str] = None
-    photourl_after_dash: Optional[str] = None
+    photourl_after_dash: Optional[str] = None  
+    # NEW: Tracking timestamps for the return flow
+    keys_returned_at: Optional[datetime] = None
+    hire_ended_at: Optional[datetime] = None
 
 class BookingCreate(BookingBase):
     pass
@@ -145,7 +148,9 @@ class BookingUpdate(BaseModel):
     photourl_after_right: Optional[str] = None
     photourl_after_rear: Optional[str] = None
     photourl_after_dash: Optional[str] = None
-
+    # NEW: Allow updates to return fields
+    keys_returned_at: Optional[datetime] = None
+    hire_ended_at: Optional[datetime] = None
 
 class BookingOut(BaseModel):
     bookings_id: int
@@ -156,8 +161,11 @@ class BookingOut(BaseModel):
 
     hire_started_at: Optional[datetime] = None
     keys_retrieved_at: Optional[datetime] = None
+    # NEW: These must be in the Out schema for the Android app to see them
+    keys_returned_at: Optional[datetime] = None
+    hire_ended_at: Optional[datetime] = None
     
-    # NEW nested objects
+    # nested objects
     car: CarBrief
 
     class Config:
@@ -288,6 +296,7 @@ class AuthResponse(BaseModel):
     
     class Config:
         from_attributes = True
+
 
 
 
