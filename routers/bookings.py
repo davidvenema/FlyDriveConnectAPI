@@ -171,7 +171,7 @@ def start_hire(
     return booking
 
 # ===================================================================
-# 5.5 COMPLETE KEY RETRIEVAL (Physical Confirmation)
+# 5.5 COMPLETE KEY RETRIEVAL (Physical Confirmation) - to Start Hire
 # ===================================================================
 @router.put("/{bookings_id}/complete-keys", response_model=BookingOut)
 def complete_keys(
@@ -414,6 +414,57 @@ def extend_booking(
     # 4. Apply the extension
     booking.end_time = new_end_time
     
+    db.commit()
+    db.refresh(booking)
+    return booking
+
+# ===================================================================
+# 10. COMPLETE KEY RETURN (Physical Confirmation) - End of Hire
+# ===================================================================
+@router.put("/{bookings_id}/complete-keys-return", response_model=BookingOut)
+def complete_keys_return(
+    bookings_id: int,
+    db: Session = Depends(get_db),
+    current_user: Member = Depends(get_current_member),
+):
+    booking = db.query(Booking).get(bookings_id)
+    if not booking:
+        raise HTTPException(status_code=404, detail="Booking not found")
+
+    if booking.member_id != current_user.members_id:
+        raise HTTPException(status_code=403, detail="Not your booking")
+
+    # The "Physical Truth" milestone for the return
+    booking.keys_returned_at = datetime.now(timezone.utc)
+    
+    db.commit()
+    db.refresh(booking)
+    return booking
+
+# ===================================================================
+# 11. END HIRE (Final Process Completion)
+# ===================================================================
+@router.put("/{bookings_id}/end", response_model=BookingOut)
+def end_hire(
+    bookings_id: int,
+    db: Session = Depends(get_db),
+    current_user: Member = Depends(get_current_member),
+):
+    booking = db.query(Booking).get(bookings_id)
+    if not booking:
+        raise HTTPException(status_code=404, detail="Booking not found")
+
+    if booking.member_id != current_user.members_id:
+        raise HTTPException(status_code=403, detail="Not your booking")
+
+    # Validation: Ensure they haven't already ended it
+    if booking.status == "completed":
+        return booking
+
+    # The "Logical Truth" - User has finished all photos and process
+    booking.status = "completed"
+    booking.hire_ended_at = datetime.now(timezone.utc)
+
     db.commit()
     db.refresh(booking)
     return booking
